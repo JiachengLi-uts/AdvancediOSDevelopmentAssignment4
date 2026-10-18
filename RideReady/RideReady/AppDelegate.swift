@@ -7,6 +7,7 @@ import os
 enum AppTab: Hashable {
     case bike
     case ride
+    case appearance
 }
 
 /// Which tab is showing, plus a signal that the ride changed outside the Ride
@@ -27,6 +28,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     let store: RideReadyStoring
     let scheduler: NotificationScheduling
     let router = AppRouter()
+    let appearance = AppearanceSettings()
 
     private static let logger = Logger(subsystem: "com.iosdev.RideReady", category: "notifications")
 
