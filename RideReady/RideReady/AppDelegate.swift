@@ -7,6 +7,7 @@ import os
 enum AppTab: Hashable {
     case bike
     case ride
+    case lapTimer
 }
 
 /// Which tab is showing, plus a signal that the ride changed outside the Ride

@@ -1,7 +1,7 @@
 import Foundation
 
-/// Saves the motorcycle, walk-arounds, streak, rides, and break reminder
-/// settings in UserDefaults as JSON.
+/// Saves the motorcycle, walk-arounds, streak, rides, break reminder settings,
+/// and the lap timer's tracks and sessions in UserDefaults as JSON.
 final class UserDefaultsRideReadyStore: RideReadyStoring {
     private enum Key {
         static let motorcycle = "rideReady.motorcycle"
@@ -10,6 +10,8 @@ final class UserDefaultsRideReadyStore: RideReadyStoring {
         static let streak = "rideReady.streak"
         static let rides = "rideReady.rides"
         static let breakReminderSettings = "rideReady.breakReminderSettings"
+        static let tracks = "rideReady.tracks"
+        static let sessions = "rideReady.sessions"
     }
 
     private let defaults: UserDefaults
@@ -99,6 +101,22 @@ final class UserDefaultsRideReadyStore: RideReadyStoring {
 
     func save(_ settings: BreakReminderSettings) {
         encode(settings, forKey: Key.breakReminderSettings)
+    }
+
+    func tracks() -> [Track] {
+        decode([Track].self, forKey: Key.tracks) ?? []
+    }
+
+    func saveTracks(_ tracks: [Track]) {
+        encode(tracks, forKey: Key.tracks)
+    }
+
+    func sessions() -> [Session] {
+        decode([Session].self, forKey: Key.sessions) ?? []
+    }
+
+    func saveSessions(_ sessions: [Session]) {
+        encode(sessions, forKey: Key.sessions)
     }
 
     private func inspections() -> [PreRideInspection] {
