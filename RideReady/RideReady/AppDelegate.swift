@@ -7,6 +7,7 @@ import os
 enum AppTab: Hashable {
     case bike
     case ride
+    case lapTimer
     case appearance
 }
 
