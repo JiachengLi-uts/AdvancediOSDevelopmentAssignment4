@@ -17,6 +17,8 @@ enum AppTab: Hashable {
 final class AppRouter: ObservableObject {
     @Published var selectedTab: AppTab = .bike
     @Published private(set) var rideChangeCount = 0
+    @Published var bikePath: [BikeRoute] = []
+    @Published var widgetError: String?
 
     func rideChangedElsewhere() {
         rideChangeCount += 1
@@ -26,7 +28,7 @@ final class AppRouter: ObservableObject {
 /// Owns the app's store and notification scheduler, registers notification
 /// categories, and handles break reminder actions and taps.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    let store: RideReadyStoring
+    let store: WidgetPublishingRideReadyStore
     let scheduler: NotificationScheduling
     let router = AppRouter()
     let appearance = AppearanceSettings()
@@ -38,9 +40,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         if store.motorcycle() == nil {
             store.save(.yamahaMT07())
         }
-        self.store = store
+        self.store = WidgetPublishingRideReadyStore(base: store)
         scheduler = UserNotificationScheduler()
         super.init()
+        self.store.refreshWidget()
     }
 
     func application(
