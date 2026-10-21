@@ -61,6 +61,8 @@ final class RideViewModel: ObservableObject {
     @Published private(set) var settings: BreakReminderSettings
     @Published private(set) var permission: NotificationPermission = .notDetermined
     @Published private(set) var recentRides: [RecentRide] = []
+    /// Entries logged during the ride in progress, newest first.
+    @Published private(set) var journalEntries: [JournalEntry] = []
     @Published var riderError: String?
 
     static let recentRideLimit = 5
@@ -69,6 +71,7 @@ final class RideViewModel: ObservableObject {
     let intervalStep = BreakReminderSettings.intervalStep
 
     private let store: RideReadyStoring
+    private let journal: RideJournalRepository
     private let scheduler: NotificationScheduling
     private let startRideUseCase: StartRideUseCase
     private let takeBreakUseCase: TakeBreakUseCase
@@ -76,12 +79,14 @@ final class RideViewModel: ObservableObject {
     private let endRideUseCase: EndRideUseCase
     private let saveSettings: SaveBreakReminderSettingsUseCase
     private let scheduleReminders: ScheduleBreakRemindersUseCase
+    private let loadJournal: LoadRideJournalUseCase
     private var ride: Ride?
 
     private static let logger = Logger(subsystem: "com.iosdev.RideReady", category: "notifications")
 
-    init(store: RideReadyStoring, scheduler: NotificationScheduling) {
+    init(store: RideReadyStoring, journal: RideJournalRepository, scheduler: NotificationScheduling) {
         self.store = store
+        self.journal = journal
         self.scheduler = scheduler
         startRideUseCase = StartRideUseCase(store: store)
         takeBreakUseCase = TakeBreakUseCase(store: store)
@@ -89,12 +94,18 @@ final class RideViewModel: ObservableObject {
         endRideUseCase = EndRideUseCase(store: store)
         saveSettings = SaveBreakReminderSettingsUseCase(store: store)
         scheduleReminders = ScheduleBreakRemindersUseCase(store: store, scheduler: scheduler)
+        loadJournal = LoadRideJournalUseCase(journal: journal)
         settings = store.breakReminderSettings()
         reload()
     }
 
     var intervalText: String {
         DurationText.string(for: TimeInterval(settings.intervalMinutes * 60))
+    }
+
+    /// Start ride only unlocks once today's pre-ride check passed.
+    var canStartRide: Bool {
+        bikeCheck.kind == .rideReady
     }
 
     /// Reminders are on but iOS won't show them.
@@ -119,6 +130,7 @@ final class RideViewModel: ObservableObject {
         settings = store.breakReminderSettings()
         recentRides = store.completedRides().prefix(Self.recentRideLimit).map(Self.recentRide(for:))
         ride = store.activeRide()
+        journalEntries = ride.map { journalEntries(forRide: $0.id).reversed() } ?? []
         if let ride {
             phase = ride.isOnBreak ? .onBreak : .riding
         } else if case .finished = phase {
@@ -176,6 +188,20 @@ final class RideViewModel: ObservableObject {
             riderError = error.localizedDescription
         }
         await refreshReminders()
+    }
+
+    func makeJournalEntryViewModel() -> JournalEntryViewModel {
+        JournalEntryViewModel(store: store, journal: journal)
+    }
+
+    /// A ride's journal entries, oldest first.
+    func journalEntries(forRide rideID: UUID) -> [JournalEntry] {
+        do {
+            return try loadJournal.entries(forRide: rideID)
+        } catch {
+            riderError = error.localizedDescription
+            return []
+        }
     }
 
     func dismissSummary() {

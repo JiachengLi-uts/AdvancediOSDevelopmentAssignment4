@@ -3,6 +3,7 @@ import SwiftUI
 /// Bike inspection, rides, lap timer and appearance settings.
 struct RootTabView: View {
     let store: RideReadyStoring
+    let journal: RideJournalRepository
     let scheduler: NotificationScheduling
     @ObservedObject var router: AppRouter
     @ObservedObject var appearance: AppearanceSettings
@@ -13,7 +14,7 @@ struct RootTabView: View {
                 BikeView(store: store, path: $router.bikePath)
             }
             Tab("Ride", systemImage: "road.lanes", value: AppTab.ride) {
-                RideView(store: store, scheduler: scheduler, router: router)
+                RideView(store: store, journal: journal, scheduler: scheduler, router: router)
             }
             Tab("Lap Timer", systemImage: "stopwatch", value: AppTab.lapTimer) {
                 LapTimerView(store: store, onExit: { router.selectedTab = .bike })

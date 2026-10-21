@@ -6,6 +6,7 @@ enum RideError: LocalizedError, Equatable {
     case noRideInProgress
     case alreadyOnBreak
     case notOnBreak
+    case bikeNotRideReady
 
     var errorDescription: String? {
         switch self {
@@ -17,6 +18,8 @@ enum RideError: LocalizedError, Equatable {
             return "You're already on a break. Tap Back on the road when you set off again."
         case .notOnBreak:
             return "You're not on a break right now."
+        case .bikeNotRideReady:
+            return "Your bike needs to pass today's pre-ride check on the Bike tab before you start a ride."
         }
     }
 }

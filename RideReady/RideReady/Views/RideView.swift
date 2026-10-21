@@ -8,9 +8,10 @@ struct RideView: View {
     @Environment(\.openURL) private var openURL
     @State private var showingError = false
     @State private var confirmingEnd = false
+    @State private var addingJournalEntry = false
 
-    init(store: RideReadyStoring, scheduler: NotificationScheduling, router: AppRouter) {
-        _viewModel = StateObject(wrappedValue: RideViewModel(store: store, scheduler: scheduler))
+    init(store: RideReadyStoring, journal: RideJournalRepository, scheduler: NotificationScheduling, router: AppRouter) {
+        _viewModel = StateObject(wrappedValue: RideViewModel(store: store, journal: journal, scheduler: scheduler))
         _router = ObservedObject(wrappedValue: router)
     }
 
@@ -28,6 +29,14 @@ struct RideView: View {
                 actions
             }
             .navigationTitle("Ride")
+            .navigationDestination(for: RideJournalRoute.self) { route in
+                RideJournalView(title: route.title, entries: viewModel.journalEntries(forRide: route.rideID))
+            }
+            .sheet(isPresented: $addingJournalEntry) {
+                JournalEntryView(viewModel: viewModel.makeJournalEntryViewModel()) {
+                    viewModel.reload()
+                }
+            }
             .sensoryFeedback(.impact, trigger: viewModel.phase)
             .task { await viewModel.refreshReminders() }
             .onAppear { viewModel.reload() }
@@ -69,6 +78,7 @@ struct RideView: View {
                     if viewModel.remindersBlocked {
                         notificationsOffCard
                     }
+                    journalCard
                     infoCard(rows: [
                         ("Started", viewModel.startedText),
                         ("Breaks", viewModel.breaksText),
@@ -81,6 +91,7 @@ struct RideView: View {
                 let snapshot = viewModel.breakSnapshot(at: context.date)
                 VStack(alignment: .leading, spacing: 16) {
                     breakCard(snapshot)
+                    journalCard
                     infoCard(rows: [
                         ("Started", viewModel.startedText),
                         ("Riding so far", snapshot.ridingSoFarText),
@@ -184,6 +195,32 @@ struct RideView: View {
     }
 
     // MARK: - Riding and breaks
+
+    private var journalCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Ride journal")
+                .font(.headline)
+            if viewModel.journalEntries.isEmpty {
+                Text("When you stop somewhere worth remembering, log it here with a photo.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(viewModel.journalEntries) { entry in
+                JournalEntryRow(entry: entry)
+            }
+            Button {
+                addingJournalEntry = true
+            } label: {
+                Label("Add to journal", systemImage: "square.and.pencil")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+    }
 
     private func ridingCard(_ snapshot: RideViewModel.RidingSnapshot) -> some View {
         statusCard(
@@ -294,17 +331,29 @@ struct RideView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(viewModel.recentRides) { ride in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(ride.dateText)
-                                .font(.subheadline)
-                            Text(ride.detailText)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                        NavigationLink(value: RideJournalRoute(rideID: ride.id, title: ride.dateText)) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(ride.dateText)
+                                        .font(.subheadline)
+                                    Text(ride.detailText)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 8)
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
+                        .accessibilityHint("Shows the journal for this ride")
                         if ride.id != viewModel.recentRides.last?.id {
                             Divider()
                                 .padding(.leading)
@@ -362,6 +411,7 @@ struct RideView: View {
             switch viewModel.phase {
             case .ready:
                 primaryButton("Start ride") { await viewModel.startRide() }
+                    .disabled(!viewModel.canStartRide)
             case .riding:
                 primaryButton("Take a break") { await viewModel.takeBreak() }
                 endRideButton
