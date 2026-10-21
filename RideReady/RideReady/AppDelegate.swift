@@ -23,10 +23,11 @@ final class AppRouter: ObservableObject {
     }
 }
 
-/// Owns the app's store and notification scheduler, registers notification
-/// categories, and handles break reminder actions and taps.
+/// Owns the app's store, ride journal, and notification scheduler, registers
+/// notification categories, and handles break reminder actions and taps.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     let store: RideReadyStoring
+    let journal: RideJournalRepository
     let scheduler: NotificationScheduling
     let router = AppRouter()
     let appearance = AppearanceSettings()
@@ -39,6 +40,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             store.save(.yamahaMT07())
         }
         self.store = store
+        do {
+            journal = try SwiftDataRideJournalRepository()
+        } catch {
+            // Keep riding working; this session's journal just isn't saved to disk.
+            Self.logger.error("Couldn't open the ride journal: \(error.localizedDescription, privacy: .public)")
+            // An in-memory store has no file to fail on.
+            journal = try! SwiftDataRideJournalRepository(inMemory: true)
+        }
         scheduler = UserNotificationScheduler()
         super.init()
     }

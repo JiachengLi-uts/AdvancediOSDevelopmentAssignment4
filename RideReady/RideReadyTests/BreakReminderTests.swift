@@ -13,6 +13,7 @@ final class BreakReminderTests: XCTestCase {
         defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         store = UserDefaultsRideReadyStore(defaults: defaults)
         scheduler = SpyNotificationScheduler()
+        store.logPreRideCheck(.readyToRide, at: start)
     }
 
     override func tearDown() {
@@ -98,13 +99,28 @@ final class BreakReminderTests: XCTestCase {
         XCTAssertThrowsError(try TakeBreakUseCase(store: store).takeBreak()) { error in
             XCTAssertEqual(error as? RideError, .noRideInProgress)
         }
-        _ = try StartRideUseCase(store: store).start()
-        XCTAssertThrowsError(try StartRideUseCase(store: store).start()) { error in
+        _ = try StartRideUseCase(store: store, now: { self.start }).start()
+        XCTAssertThrowsError(try StartRideUseCase(store: store, now: { self.start }).start()) { error in
             XCTAssertEqual(error as? RideError, .rideInProgress)
         }
         XCTAssertThrowsError(try ResumeRideUseCase(store: store).resume()) { error in
             XCTAssertEqual(error as? RideError, .notOnBreak)
         }
+    }
+
+    func test_startRide_needsTodaysPreRideCheckToPass() throws {
+        let tomorrow = start.addingTimeInterval(24 * 60 * 60)
+        XCTAssertThrowsError(try StartRideUseCase(store: store, now: { tomorrow }).start()) { error in
+            XCTAssertEqual(error as? RideError, .bikeNotRideReady)
+        }
+
+        store.logPreRideCheck(.notRideReady, at: tomorrow)
+        XCTAssertThrowsError(try StartRideUseCase(store: store, now: { tomorrow }).start()) { error in
+            XCTAssertEqual(error as? RideError, .bikeNotRideReady)
+        }
+
+        store.logPreRideCheck(.readyToRide, at: tomorrow.addingTimeInterval(60))
+        XCTAssertNoThrow(try StartRideUseCase(store: store, now: { tomorrow.addingTimeInterval(120) }).start())
     }
 
     func test_saveSettings_acceptsThirtyMinutesToFourHoursInFifteenMinuteSteps() throws {
