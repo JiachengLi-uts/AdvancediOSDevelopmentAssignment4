@@ -362,6 +362,7 @@ struct RideView: View {
             switch viewModel.phase {
             case .ready:
                 primaryButton("Start ride") { await viewModel.startRide() }
+                    .disabled(!viewModel.canStartRide)
             case .riding:
                 primaryButton("Take a break") { await viewModel.takeBreak() }
                 endRideButton

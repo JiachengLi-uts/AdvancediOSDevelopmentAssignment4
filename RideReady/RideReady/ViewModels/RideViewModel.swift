@@ -97,6 +97,11 @@ final class RideViewModel: ObservableObject {
         DurationText.string(for: TimeInterval(settings.intervalMinutes * 60))
     }
 
+    /// Start ride only unlocks once today's pre-ride check passed.
+    var canStartRide: Bool {
+        bikeCheck.kind == .rideReady
+    }
+
     /// Reminders are on but iOS won't show them.
     var remindersBlocked: Bool {
         settings.isEnabled && permission == .denied
