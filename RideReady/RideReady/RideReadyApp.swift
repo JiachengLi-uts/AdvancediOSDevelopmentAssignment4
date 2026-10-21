@@ -8,6 +8,7 @@ struct RideReadyApp: App {
         WindowGroup {
             RootTabView(
                 store: appDelegate.store,
+                journal: appDelegate.journal,
                 scheduler: appDelegate.scheduler,
                 router: appDelegate.router,
                 appearance: appDelegate.appearance
